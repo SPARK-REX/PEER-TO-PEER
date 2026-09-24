@@ -46,68 +46,38 @@ const sidebar          = document.querySelector('.sidebar');
 const sidebarCloseBtn  = document.getElementById('sidebar-close-btn');
 
 // ══════════════════════════════════
-// MATRIX DIGITAL RAIN BACKGROUND
+// CONSTANTS & UTILITY FUNCTIONS
 // ══════════════════════════════════
-const canvas = document.getElementById('particles-canvas');
-const ctx = canvas.getContext('2d');
-
-let columns = 0;
-let drops = [];
-const fontSize = 16;
-
-function resizeCanvas() {
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-  columns = Math.floor(canvas.width / fontSize) + 1;
-  drops = [];
-  for (let x = 0; x < columns; x++) {
-    drops[x] = Math.random() * (canvas.height / fontSize);
+const BYTES_PER_KB = 1024;
+const BYTES_PER_MB = 1048576;
+// ══════════════════════════════════
+async function copyToClipboard(text) {
+  if (navigator.clipboard && window.isSecureContext) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch (e) {
+      // Fall through to fallback
+    }
   }
+  const textArea = document.createElement('textarea');
+  textArea.value = text;
+  textArea.style.position = 'fixed';
+  textArea.style.left = '-999999px';
+  textArea.style.top = '-999999px';
+  textArea.setAttribute('readonly', '');
+  document.body.appendChild(textArea);
+  textArea.select();
+  textArea.setSelectionRange(0, 99999);
+  const successful = document.execCommand('copy');
+  document.body.removeChild(textArea);
+  if (!successful) throw new Error('Copy failed');
+  return true;
 }
 
-function drawMatrix() {
-  // Translucent black to create the trail effect
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.08)';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  
-  ctx.font = fontSize + 'px "Share Tech Mono", monospace';
-  
-  for (let i = 0; i < drops.length; i++) {
-    const char = Math.random() > 0.6 
-      ? String.fromCharCode(0x30A0 + Math.floor(Math.random() * 96)) 
-      : (Math.random() > 0.5 ? '1' : '0');
-      
-    const x = i * fontSize;
-    const y = drops[i] * fontSize;
-    
-    // Random highlights for some characters
-    if (Math.random() > 0.95) {
-      ctx.fillStyle = '#7fff8a'; // Bright green
-    } else {
-      ctx.fillStyle = '#00ff41'; // Standard green
-    }
-    
-    ctx.fillText(char, x, y);
-    
-    // Reset drop to top randomly when it offscreen
-    if (y > canvas.height && Math.random() > 0.975) {
-      drops[i] = 0;
-    }
-    drops[i]++;
-  }
-}
-
-window.addEventListener('resize', resizeCanvas);
-resizeCanvas();
-
-const matrixInterval = setInterval(drawMatrix, 50);
-
-// ══════════════════════════════════
-// UTILITY FUNCTIONS
-// ══════════════════════════════════
 function applyCipherEffect(element, finalString = null, speedMs = 30) {
   const symbols = 'ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ01@#$%^&*()_+{}[]|:;<>,./?~-';
-  const targetText = finalString || element.innerText;
+  const targetText = finalString !== null ? finalString : element.textContent;
 
   clearInterval(element.cipherInterval);
 
@@ -116,21 +86,21 @@ function applyCipherEffect(element, finalString = null, speedMs = 30) {
   if (targetText.length > LONG_TEXT_THRESHOLD) {
     const scramble = () => targetText
       .split('')
-      .map(ch => ch === ' ' ? ' ' : symbols[Math.floor(Math.random() * symbols.length)])
+      .map(ch => (ch === ' ' || ch === '\n' || ch === '\r' || ch === '\t') ? ch : symbols[Math.floor(Math.random() * symbols.length)])
       .join('');
 
-    element.innerText = scramble();
-    if (element.hasAttribute('data-text')) element.setAttribute('data-text', element.innerText);
+    element.textContent = scramble();
+    if (element.hasAttribute('data-text')) element.setAttribute('data-text', element.textContent);
 
     let flashes = 0;
     element.cipherInterval = setInterval(() => {
       flashes++;
       if (flashes < 3) {
-        element.innerText = scramble();
-        if (element.hasAttribute('data-text')) element.setAttribute('data-text', element.innerText);
+        element.textContent = scramble();
+        if (element.hasAttribute('data-text')) element.setAttribute('data-text', element.textContent);
       } else {
         clearInterval(element.cipherInterval);
-        element.innerText = targetText;
+        element.textContent = targetText;
         if (element.hasAttribute('data-text')) element.setAttribute('data-text', targetText);
       }
     }, 60);
@@ -144,32 +114,24 @@ function applyCipherEffect(element, finalString = null, speedMs = 30) {
       .split('')
       .map((char, index) => {
         if (index < iterations) return targetText[index];
-        if (targetText[index] === ' ') return ' ';
+        if (char === ' ' || char === '\n' || char === '\r' || char === '\t') return char;
         return symbols[Math.floor(Math.random() * symbols.length)];
       })
       .join('');
 
-    element.innerText = currentStr;
+    element.textContent = currentStr;
     if (element.hasAttribute('data-text')) element.setAttribute('data-text', currentStr);
 
     if (iterations >= targetText.length) {
       clearInterval(element.cipherInterval);
-      element.innerText = targetText;
+      element.textContent = targetText;
       if (element.hasAttribute('data-text')) element.setAttribute('data-text', targetText);
     }
     iterations += 1 / 3;
   }, speedMs);
 }
 
-// Initial Triggers
-const logo = document.querySelector('.logo-glitch');
-if (logo) applyCipherEffect(logo, 'NEXUS LINK', 40);
-
-const logoSub = document.querySelector('.logo-sub');
-if (logoSub) applyCipherEffect(logoSub, '[ CROSS-DEVICE COMMUNICATION PROTOCOL ]', 20);
-
-const termTitle = document.querySelector('.terminal-title');
-if (termTitle) applyCipherEffect(termTitle, '// ESTABLISH CONNECTION', 20);
+// Initial Triggers removed to stop the scrambling effect on login page
 
 function generateRoomId() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -184,9 +146,9 @@ function formatTime(iso) {
 }
 
 function formatBytes(bytes) {
-  if (bytes < 1024) return bytes + ' B';
-  if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
-  return (bytes / 1048576).toFixed(1) + ' MB';
+  if (bytes < BYTES_PER_KB) return bytes + ' B';
+  if (bytes < BYTES_PER_MB) return (bytes / BYTES_PER_KB).toFixed(1) + ' KB';
+  return (bytes / BYTES_PER_MB).toFixed(1) + ' MB';
 }
 
 function getFileIcon(mimetype, name) {
@@ -242,11 +204,38 @@ function appendTextMessage(data, isSelf) {
     ? `<span>${formatTime(data.timestamp)}</span>`
     : `<span>${escapeHtml(data.sender)}</span><span>${formatTime(data.timestamp)}</span>`;
 
+  const bubbleContainer = document.createElement('div');
+  bubbleContainer.className = 'msg-bubble-container';
+
   const bubble = document.createElement('div');
   bubble.className = 'msg-bubble';
 
+  const copyBtn = document.createElement('button');
+  copyBtn.className = 'copy-msg-btn';
+  copyBtn.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg> <span>COPY</span>`;
+  copyBtn.title = 'Copy exact message text';
+  copyBtn.onclick = () => {
+    copyToClipboard(data.text)
+      .then(() => {
+        showToast('✓ Copied to clipboard!');
+        const textSpan = copyBtn.querySelector('span');
+        if (textSpan) textSpan.textContent = 'COPIED!';
+        copyBtn.style.color = 'var(--green)';
+        copyBtn.style.borderColor = 'var(--green)';
+        setTimeout(() => {
+          if (textSpan) textSpan.textContent = 'COPY';
+          copyBtn.style.color = '';
+          copyBtn.style.borderColor = '';
+        }, 1500);
+      })
+      .catch(() => showToast('⚠ Copy failed'));
+  };
+
+  bubbleContainer.appendChild(bubble);
+  bubbleContainer.appendChild(copyBtn);
+
   wrapper.appendChild(meta);
-  wrapper.appendChild(bubble);
+  wrapper.appendChild(bubbleContainer);
   messagesInner.appendChild(wrapper);
   scrollToBottom();
 
@@ -564,13 +553,23 @@ async function uploadFile(file) {
 
 // ══════════════════════════════════
 // SEND LOGIC
-// ══════════════════════════════════
+function autoResizeInput() {
+  if (!messageInput) return;
+  messageInput.style.height = 'auto';
+  const newHeight = Math.min(Math.max(messageInput.scrollHeight, 42), 180);
+  messageInput.style.height = `${newHeight}px`;
+}
+
 async function sendMessage() {
-  const text = messageInput.value.trim();
+  const rawText = messageInput.value;
+  if (!rawText.trim() && pendingFiles.length === 0) return;
+
+  const text = rawText.replace(/\r\n/g, '\n').trimEnd();
   const files = [...pendingFiles];
   pendingFiles = [];
   renderFileStrip();
   messageInput.value = '';
+  autoResizeInput();
   stopTyping();
 
   if (text) {
@@ -592,6 +591,14 @@ messageInput.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault();
     sendMessage();
+  } else if (e.key === 'Tab') {
+    e.preventDefault();
+    const start = messageInput.selectionStart;
+    const end = messageInput.selectionEnd;
+    const val = messageInput.value;
+    messageInput.value = val.substring(0, start) + '    ' + val.substring(end);
+    messageInput.selectionStart = messageInput.selectionEnd = start + 4;
+    autoResizeInput();
   }
 });
 
@@ -615,7 +622,10 @@ function stopTyping() {
   clearTimeout(typingTimeout);
 }
 
-messageInput.addEventListener('input', startTyping);
+messageInput.addEventListener('input', () => {
+  startTyping();
+  autoResizeInput();
+});
 
 // ══════════════════════════════════
 // SOCKET INITIALIZATION
@@ -727,6 +737,7 @@ function switchToChat(roomId, deviceName) {
     sidebarToggleBtn.classList.add('sidebar-closed');
   }
 
+  autoResizeInput();
   messageInput.focus();
 }
 
@@ -791,7 +802,7 @@ sidebarCloseBtn.addEventListener('click', () => {
 });
 
 copyRoomBtn.addEventListener('click', () => {
-  navigator.clipboard.writeText(myRoom).then(() => showToast('✓ Room ID copied!')).catch(() => showToast('Could not copy'));
+  copyToClipboard(myRoom).then(() => showToast('✓ Room ID copied!')).catch(() => showToast('Could not copy'));
 });
 
 disconnectBtn.addEventListener('click', () => {
