@@ -117,13 +117,26 @@ async function copyToClipboard(text) {
   const textArea = document.createElement('textarea');
   textArea.value = text;
   textArea.style.position = 'fixed';
-  textArea.style.left = '-999999px';
-  textArea.style.top = '-999999px';
-  textArea.setAttribute('readonly', '');
+  textArea.style.top = '0';
+  textArea.style.left = '0';
+  textArea.style.width = '2em';
+  textArea.style.height = '2em';
+  textArea.style.padding = '0';
+  textArea.style.border = 'none';
+  textArea.style.outline = 'none';
+  textArea.style.boxShadow = 'none';
+  textArea.style.background = 'transparent';
+  textArea.style.opacity = '0.01';
   document.body.appendChild(textArea);
+  textArea.focus();
   textArea.select();
-  textArea.setSelectionRange(0, 99999);
-  const successful = document.execCommand('copy');
+  textArea.setSelectionRange(0, text.length);
+  let successful = false;
+  try {
+    successful = document.execCommand('copy');
+  } catch (err) {
+    successful = false;
+  }
   document.body.removeChild(textArea);
   if (!successful) throw new Error('Copy failed');
   return true;
@@ -269,8 +282,17 @@ function appendTextMessage(data, isSelf) {
   const bubbleContainer = document.createElement('div');
   bubbleContainer.className = 'msg-bubble-container';
 
-  const bubble = document.createElement('div');
+  const bubble = document.createElement('pre');
   bubble.className = 'msg-bubble';
+
+  // Ensure copying manually or with keyboard shortcut preserves raw plain text without collapsing newlines
+  bubble.addEventListener('copy', (e) => {
+    const selection = window.getSelection().toString();
+    if (selection) {
+      e.clipboardData.setData('text/plain', selection);
+      e.preventDefault();
+    }
+  });
 
   const copyBtn = document.createElement('button');
   copyBtn.className = 'copy-msg-btn';
