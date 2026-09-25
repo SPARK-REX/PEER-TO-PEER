@@ -447,13 +447,19 @@ body::before {
 
 .msg-bubble {
   display: inline-block;
+  margin: 0;
   padding: 0.7rem 1rem;
   border-radius: 6px;
   font-size: 0.88rem;
   line-height: 1.5;
   word-break: break-word;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  tab-size: 4;
+  user-select: text;
   max-width: 100%;
   position: relative;
+  font-family: var(--mono);
 }
 .msg-wrapper.self .msg-bubble {
   background: rgba(0,255,65,0.12);
@@ -532,7 +538,7 @@ body::before {
 
 /* ── Input Bar ── */
 .input-bar {
-  display: flex; align-items: center; gap: 0.7rem;
+  display: flex; align-items: flex-end; gap: 0.7rem;
   padding: 1rem 1.5rem;
   border-top: 1px solid var(--border);
   background: rgba(0,0,0,0.8);
@@ -594,7 +600,18 @@ body::before {
   caret-color: var(--green);
   transition: border-color 0.2s, box-shadow 0.2s;
   min-width: 0;
+  resize: none;
+  min-height: 42px;
+  max-height: 180px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-y: auto;
+  box-sizing: border-box;
 }
+.message-input::-webkit-scrollbar { width: 4px; }
+.message-input::-webkit-scrollbar-track { background: transparent; }
+.message-input::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 .message-input::placeholder { color: var(--text-muted); }
 .message-input:focus { border-color: var(--green-dim); box-shadow: 0 0 10px var(--green-glow); }
 
@@ -811,30 +828,41 @@ body::before {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 0.2rem;
+  gap: 0.25rem;
+  max-width: 100%;
 }
 .msg-wrapper.self .msg-bubble-container {
   align-items: flex-end;
 }
 .copy-msg-btn {
-  background: transparent;
+  background: rgba(0, 0, 0, 0.6);
   border: 1px solid var(--border);
   color: var(--text-dim);
   font-family: var(--mono);
-  font-size: 0.55rem;
-  padding: 0.2rem 0.4rem;
+  font-size: 0.6rem;
+  padding: 0.22rem 0.5rem;
   border-radius: 3px;
   cursor: pointer;
   opacity: 0;
-  transition: opacity 0.2s, background 0.2s, color 0.2s, box-shadow 0.2s;
-  letter-spacing: 0.1em;
+  transition: opacity 0.2s, background 0.2s, color 0.2s, border-color 0.2s, box-shadow 0.2s;
+  letter-spacing: 0.08em;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  user-select: none;
 }
-.msg-wrapper:hover .copy-msg-btn {
+.msg-wrapper:hover .copy-msg-btn,
+.copy-msg-btn:focus-visible {
   opacity: 1;
 }
 .copy-msg-btn:hover {
-  background: rgba(0, 255, 65, 0.1);
+  background: rgba(0, 255, 65, 0.12);
   color: var(--green);
   border-color: var(--green);
-  box-shadow: 0 0 5px rgba(0,255,65,0.2);
+  box-shadow: 0 0 8px rgba(0,255,65,0.25);
+}
+@media (hover: none) {
+  .copy-msg-btn {
+    opacity: 0.75;
+  }
 }

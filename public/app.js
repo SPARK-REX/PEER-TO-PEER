@@ -51,9 +51,46 @@ const sidebarCloseBtn  = document.getElementById('sidebar-close-btn');
 const BYTES_PER_KB = 1024;
 const BYTES_PER_MB = 1048576;
 // ══════════════════════════════════
+async function copyToClipboard(text) {
+  if (navigator.clipboard && window.isSecureContext) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch (e) {
+      // Fall through to fallback
+    }
+  }
+  const textArea = document.createElement('textarea');
+  textArea.value = text;
+  textArea.style.position = 'fixed';
+  textArea.style.top = '0';
+  textArea.style.left = '0';
+  textArea.style.width = '2em';
+  textArea.style.height = '2em';
+  textArea.style.padding = '0';
+  textArea.style.border = 'none';
+  textArea.style.outline = 'none';
+  textArea.style.boxShadow = 'none';
+  textArea.style.background = 'transparent';
+  textArea.style.opacity = '0.01';
+  document.body.appendChild(textArea);
+  textArea.focus();
+  textArea.select();
+  textArea.setSelectionRange(0, text.length);
+  let successful = false;
+  try {
+    successful = document.execCommand('copy');
+  } catch (err) {
+    successful = false;
+  }
+  document.body.removeChild(textArea);
+  if (!successful) throw new Error('Copy failed');
+  return true;
+}
+
 function applyCipherEffect(element, finalString = null, speedMs = 30) {
   const symbols = 'ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ01@#$%^&*()_+{}[]|:;<>,./?~-';
-  const targetText = finalString || element.innerText;
+  const targetText = finalString !== null ? finalString : element.textContent;
 
   clearInterval(element.cipherInterval);
 
@@ -62,21 +99,21 @@ function applyCipherEffect(element, finalString = null, speedMs = 30) {
   if (targetText.length > LONG_TEXT_THRESHOLD) {
     const scramble = () => targetText
       .split('')
-      .map(ch => ch === ' ' ? ' ' : symbols[Math.floor(Math.random() * symbols.length)])
+      .map(ch => (ch === ' ' || ch === '\n' || ch === '\r' || ch === '\t') ? ch : symbols[Math.floor(Math.random() * symbols.length)])
       .join('');
 
-    element.innerText = scramble();
-    if (element.hasAttribute('data-text')) element.setAttribute('data-text', element.innerText);
+    element.textContent = scramble();
+    if (element.hasAttribute('data-text')) element.setAttribute('data-text', element.textContent);
 
     let flashes = 0;
     element.cipherInterval = setInterval(() => {
       flashes++;
       if (flashes < 3) {
-        element.innerText = scramble();
-        if (element.hasAttribute('data-text')) element.setAttribute('data-text', element.innerText);
+        element.textContent = scramble();
+        if (element.hasAttribute('data-text')) element.setAttribute('data-text', element.textContent);
       } else {
         clearInterval(element.cipherInterval);
-        element.innerText = targetText;
+        element.textContent = targetText;
         if (element.hasAttribute('data-text')) element.setAttribute('data-text', targetText);
       }
     }, 60);
@@ -90,17 +127,17 @@ function applyCipherEffect(element, finalString = null, speedMs = 30) {
       .split('')
       .map((char, index) => {
         if (index < iterations) return targetText[index];
-        if (targetText[index] === ' ') return ' ';
+        if (char === ' ' || char === '\n' || char === '\r' || char === '\t') return char;
         return symbols[Math.floor(Math.random() * symbols.length)];
       })
       .join('');
 
-    element.innerText = currentStr;
+    element.textContent = currentStr;
     if (element.hasAttribute('data-text')) element.setAttribute('data-text', currentStr);
 
     if (iterations >= targetText.length) {
       clearInterval(element.cipherInterval);
-      element.innerText = targetText;
+      element.textContent = targetText;
       if (element.hasAttribute('data-text')) element.setAttribute('data-text', targetText);
     }
     iterations += 1 / 3;
@@ -183,16 +220,36 @@ function appendTextMessage(data, isSelf) {
   const bubbleContainer = document.createElement('div');
   bubbleContainer.className = 'msg-bubble-container';
 
-  const bubble = document.createElement('div');
+  const bubble = document.createElement('pre');
   bubble.className = 'msg-bubble';
+
+  // Ensure copying manually or with keyboard shortcut preserves raw plain text without collapsing newlines
+  bubble.addEventListener('copy', (e) => {
+    const selection = window.getSelection().toString();
+    if (selection) {
+      e.clipboardData.setData('text/plain', selection);
+      e.preventDefault();
+    }
+  });
 
   const copyBtn = document.createElement('button');
   copyBtn.className = 'copy-msg-btn';
-  copyBtn.textContent = 'COPY';
-  copyBtn.title = 'Copy message text';
+  copyBtn.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg> <span>COPY</span>`;
+  copyBtn.title = 'Copy exact message text';
   copyBtn.onclick = () => {
-    navigator.clipboard.writeText(data.text)
-      .then(() => showToast('✓ Copied!'))
+    copyToClipboard(data.text)
+      .then(() => {
+        showToast('✓ Copied to clipboard!');
+        const textSpan = copyBtn.querySelector('span');
+        if (textSpan) textSpan.textContent = 'COPIED!';
+        copyBtn.style.color = 'var(--green)';
+        copyBtn.style.borderColor = 'var(--green)';
+        setTimeout(() => {
+          if (textSpan) textSpan.textContent = 'COPY';
+          copyBtn.style.color = '';
+          copyBtn.style.borderColor = '';
+        }, 1500);
+      })
       .catch(() => showToast('⚠ Copy failed'));
   };
 
@@ -518,13 +575,23 @@ async function uploadFile(file) {
 
 // ══════════════════════════════════
 // SEND LOGIC
-// ══════════════════════════════════
+function autoResizeInput() {
+  if (!messageInput) return;
+  messageInput.style.height = 'auto';
+  const newHeight = Math.min(Math.max(messageInput.scrollHeight, 42), 180);
+  messageInput.style.height = `${newHeight}px`;
+}
+
 async function sendMessage() {
-  const text = messageInput.value.trim();
+  const rawText = messageInput.value;
+  if (!rawText.trim() && pendingFiles.length === 0) return;
+
+  const text = rawText.replace(/\r\n/g, '\n').trimEnd();
   const files = [...pendingFiles];
   pendingFiles = [];
   renderFileStrip();
   messageInput.value = '';
+  autoResizeInput();
   stopTyping();
 
   if (text) {
@@ -546,6 +613,14 @@ messageInput.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault();
     sendMessage();
+  } else if (e.key === 'Tab') {
+    e.preventDefault();
+    const start = messageInput.selectionStart;
+    const end = messageInput.selectionEnd;
+    const val = messageInput.value;
+    messageInput.value = val.substring(0, start) + '    ' + val.substring(end);
+    messageInput.selectionStart = messageInput.selectionEnd = start + 4;
+    autoResizeInput();
   }
 });
 
@@ -569,7 +644,10 @@ function stopTyping() {
   clearTimeout(typingTimeout);
 }
 
-messageInput.addEventListener('input', startTyping);
+messageInput.addEventListener('input', () => {
+  startTyping();
+  autoResizeInput();
+});
 
 // ══════════════════════════════════
 // SOCKET INITIALIZATION
@@ -681,6 +759,7 @@ function switchToChat(roomId, deviceName) {
     sidebarToggleBtn.classList.add('sidebar-closed');
   }
 
+  autoResizeInput();
   messageInput.focus();
 }
 
@@ -745,7 +824,7 @@ sidebarCloseBtn.addEventListener('click', () => {
 });
 
 copyRoomBtn.addEventListener('click', () => {
-  navigator.clipboard.writeText(myRoom).then(() => showToast('✓ Room ID copied!')).catch(() => showToast('Could not copy'));
+  copyToClipboard(myRoom).then(() => showToast('✓ Room ID copied!')).catch(() => showToast('Could not copy'));
 });
 
 disconnectBtn.addEventListener('click', () => {
