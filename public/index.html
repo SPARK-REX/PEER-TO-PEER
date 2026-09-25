@@ -130,14 +130,14 @@
 
         <div id="file-preview-strip" class="file-preview-strip hidden"></div>
 
-        <input
-          type="text"
+        <textarea
           id="message-input"
           class="message-input"
-          placeholder="Type a message or paste text..."
+          placeholder="Type a message or paste code / text (Shift+Enter for newline)..."
           autocomplete="off"
-          maxlength="5000"
-        />
+          maxlength="50000"
+          rows="1"
+        ></textarea>
         <button id="send-btn" class="send-btn" title="Send">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
